@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte Immobilière GTA RP</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 15px 0;
+            z-index: 1001;
+        }
+        #menu {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            z-index: 1000;
+        }
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+        #formContainer {
+            display: none;
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            z-index: 1002;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">Agence Immobilière</div>
+    <div id="menu">
+        <input type="text" id="search" placeholder="Rechercher un propriétaire..." oninput="filterMarkers()">
+        <button onclick="showForm()">Ajouter un point GPS</button>
+    </div>
+    <div id="formContainer">
+        <h3>Ajouter un point GPS</h3>
+        <label>Nom du client: <input type="text" id="clientName"></label><br>
+        <label>Âge du client: <input type="number" id="clientAge"></label><br>
+        <label>Type: 
+            <select id="propertyType" onchange="updatePriceField()">
+                <option value="Location">Location</option>
+                <option value="Achat">Achat</option>
+            </select>
+        </label><br>
+        <label id="priceLabel">Prix: <input type="number" id="price"></label><br>
+        <label>Partenariat: 
+            <select id="partnership">
+                <option value="Aucuns">Aucuns</option>
+                <option value="Helmut's">Helmut's</option>
+                <option value="Hayes Auto">Hayes Auto</option>
+                <option value="LSPD - Mission Row">LSPD - Mission Row</option>
+                <option value="LSPD - Mesa">LSPD - Mesa</option>
+                <option value="LSPD - Davis">LSPD - Davis</option>
+            </select>
+        </label><br>
+        <label>Nom de la localisation: <input type="text" id="locationName"></label><br>
+        <button onclick="enableMarkerPlacement()">Placer le point</button>
+        <button onclick="closeForm()">Annuler</button>
+    </div>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map', {
+            crs: L.CRS.Simple,
+            minZoom: 2,
+            maxZoom: 5,
+            zoom: 2,
+            center: [384, 384]
+        });
+
+        var imageUrl = 'images/GTAV_map.png';
+        var imageBounds = [[0, 0], [768, 768]];
+        L.imageOverlay(imageUrl, imageBounds).addTo(map);
+        map.fitBounds(imageBounds);
+
+        var markers = [];
+        var customIcon = L.icon({
+            iconUrl: 'images/pointer_icon.jpg',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        function saveMarkers() {
+            localStorage.setItem('markers', JSON.stringify(markers.map(m => m.data)));
+        }
+
+        function loadMarkers() {
+            var storedMarkers = JSON.parse(localStorage.getItem('markers')) || [];
+            storedMarkers.forEach(data => addMarker(data, false));
+        }
+
+        function filterMarkers() {
+            var searchTerm = document.getElementById('search').value.toLowerCase();
+            markers.forEach(marker => {
+                if (marker.data.owner.includes(searchTerm) || searchTerm === '') {
+                    marker.addTo(map);
+                } else {
+                    map.removeLayer(marker);
+                }
+            });
+        }
+
+        function showForm() {
+            document.getElementById('formContainer').style.display = 'block';
+        }
+
+        function closeForm() {
+            document.getElementById('formContainer').style.display = 'none';
+        }
+
+        function enableMarkerPlacement() {
+            map.once('click', function(event) {
+                var data = {
+                    latlng: event.latlng,
+                    owner: document.getElementById('clientName').value.toLowerCase(),
+                    popupContent: `<b>${document.getElementById('clientName').value}</b><br>Âge: ${document.getElementById('clientAge').value}<br>Type: ${document.getElementById('propertyType').value}<br>Prix: ${document.getElementById('price').value}<br>Partenariat: ${document.getElementById('partnership').value}<br>Localisation: ${document.getElementById('locationName').value}`
+                };
+                addMarker(data, true);
+                closeForm();
+            });
+        }
+
+        function addMarker(data, save = true) {
+            var marker = L.marker(data.latlng, { icon: customIcon }).addTo(map);
+            marker.bindPopup(data.popupContent);
+            marker.data = data;
+            marker.on('click', function() {
+                if (confirm('Supprimer ce point ?')) {
+                    map.removeLayer(marker);
+                    markers = markers.filter(m => m !== marker);
+                    saveMarkers();
+                }
+            });
+            markers.push(marker);
+            if (save) saveMarkers();
+        }
+
+        loadMarkers();
+    </script>
+</body>
+</html>
